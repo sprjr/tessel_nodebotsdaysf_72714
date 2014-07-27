@@ -1,15 +1,51 @@
 #!/usr/bin/env node
 var debug   = require('debug')('photobooth-bot');
 var app     = require('../app');
+var fs      = require('fs');
 
 var exec    = require('child_process').exec;
-
-tessel = exec('tessel run sound-cam.js --upload-dir ./public/images', function (err, stdout, stderr) {
-    console.log('Tessel process halted. There be Dragons');
-});
 
 app.set('port', process.env.PORT || 3000);
 
 var server = app.listen(app.get('port'), function() {
-  debug('Express server listening on port ' + server.address().port);
+    debug('Express server listening on port ' + server.address().port);
+});
+
+var io = require('socket.io')(server);
+
+var tesselCb = function (err, stdout, stderr) {
+    console.log('Tessel process halted. There be Dragons. Trying again.');
+    io.emit('tessel-failure');
+    tessel = tesselExec(tesselCb);
+};
+
+var tesselExec = function (cb) {
+    console.log('Starting the Tessel');
+    return exec('tessel run sound-cam.js --upload-dir ./public/images', cb);
+}
+
+tessel = tesselExec(tesselCb);
+
+tessel.stdout.on('data', function (data) {
+    var tessel_log = data.toString();
+    console.log(tessel_log);
+
+    if (tessel_log.indexOf('sound') > -1) {
+        var vals = tessel_log.split(',');
+
+        io.emit('sound-polling', { sound: vals[1], threshold: vals[2]});
+    }
+});
+
+io.on('connection', function(socket){
+    console.log('socket: ' + socket.conn.id);
+});
+
+fs.watch('./public/images', function (event, filename) {
+    console.log('watch event: ' + event);
+
+    if (filename) {
+        console.log('new photo: ' + filename);
+        io.emit('photo-event', { photo: filename });
+    }
 });

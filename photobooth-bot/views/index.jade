@@ -1,5 +1,13 @@
 extends layout
 
 block content
-  h1= title
+  h1= "Photobots Booth!"
   p Welcome to #{title}
+
+  #photos
+    h2 Make Noise. See a Photo.
+    p Current Noise:&nbsp;
+      span#noise
+      | &nbsp; Threshold:&nbsp;
+      span#threshold
+    .display

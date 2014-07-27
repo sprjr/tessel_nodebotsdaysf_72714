@@ -11,51 +11,52 @@ var NOTIFICATION_LED    = tessel.led[3],
 camera.on('ready', function () {
     CAMERA_READY = true;
     camera.setResolution('vga', function noop () {});
-    console.log('Connected to Camera Module...');
+    process.stdout.write('Connected to Camera Module...');
 });
 
 camera.on('err', function (err) {
     CAMERA_READY = false;
-    console.log('Camera Error, Feature Unavailable');
+    process.stdout.write('Camera Error, Feature Unavailable');
     console.error(err);
+    process.exit(0);
 });
 
 // Listen For Sound Command
 ambient.on('ready', function ambientReady () {
-    console.log('Connected to Ambient Module...');
+    process.stdout.write('Connected to Ambient Module...');
 
     setInterval( function ambientPolling () {
         ambient.getSoundLevel( function getAmbientSoundLevel (err, sdata) {
-            console.log("Sound level:", sdata.toFixed(8));
+            process.stdout.write("sound," + sdata.toFixed(8) + ',' + SOUND_THRESHOLD);
         });
     }, 1000);
 
     ambient.setSoundTrigger(SOUND_THRESHOLD);
 
     ambient.on('sound-trigger', function soundTrigger(data) {
-        console.log('Sound Threshold Triggered', data);
+        process.stdout.write('sound,' + data + ',' + SOUND_THRESHOLD);
         ambient.clearSoundTrigger();
 
         if (!CAMERA_READY) {
-            console.log('Camera is not ready for photography, abort...');
+            process.stdout.write('Camera is not ready for photography, abort...');
             return;
         }
 
-        console.log('Taking Picture...');
         NOTIFICATION_LED.high();
 
         camera.takePicture(function takePicture(err, image) {
-            if (err) {
-                console.log('error taking image', err);
-            }
-
+            process.stdout.write('Taking Picture...');
             NOTIFICATION_LED.low();
+            if (err) {
+                process.stdout.write('error taking image', err);
+                return;
+            }
 
             var name = 'picture-' + new Date().getTime() + '.jpg';
 
-            console.log('Saving picture as...', name, '...');
+            // process.stdout.write('Saving picture as...', name, '...');
             process.sendfile(name, image);
-            console.log('...done.');
+            // process.stdout.write('...done.');
         });
 
         setTimeout(function setSoundTrigger() {
@@ -65,6 +66,7 @@ ambient.on('ready', function ambientReady () {
 });
 
 ambient.on('error', function (err) {
-    console.log('Ambient Error: ');
-    console.error(err);
+    process.stdout.write('Ambient Error: ');
+    process.stdout.write(err);
+    process.exit(0);
 });
